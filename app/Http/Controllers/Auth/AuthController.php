@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+
 use App\User;
+use App\Mailers\AppMailer;
+use Illuminate\Http\Request;
 use Validator;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ThrottlesLogins;
@@ -29,15 +32,20 @@ class AuthController extends Controller
      * @var string
      */
     protected $redirectTo = '/';
+    /**
+     * @var AppMailer
+     */
+    private $mailer;
 
     /**
      * Create a new authentication controller instance.
-     *
-     * @return void
+     * @param AppMailer $mailer
      */
-    public function __construct()
+    public function __construct( AppMailer $mailer )
     {
+
         $this->middleware($this->guestMiddleware(), ['except' => 'logout']);
+        $this->mailer = $mailer;
     }
 
     /**
@@ -66,7 +74,38 @@ class AuthController extends Controller
         return User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => bcrypt($data['password']),
+            'password' => $data['password'],
         ]);
     }
+
+    /**
+     * @param User $user
+     */
+    protected function sendConfirmationEmailTo(User $user){
+
+        $this->mailer->sendConfirmationEmailTo($user);
+
+    }
+
+    public function confirmEmail( $token ){
+
+        User::whereToken($token)->firstOrFail()->confirmEmail();
+        flash('You are now confirmed. Please login.');
+
+        return redirect('login');
+
+    }
+
+    public function authenticated(){
+        return redirect()->intended('/tasks');
+    }
+
+    public function getCredentials(Request $request){
+        return [
+            'email' => $request->input('email'),
+            'password' => $request->input('password'),
+            'verified' => true,
+        ];
+    }
+
 }
